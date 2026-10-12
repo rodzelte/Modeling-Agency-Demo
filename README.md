@@ -1,38 +1,87 @@
-# 42 Agency OS
+# Modeling Agency Demo
 
-Production-oriented talent management software for 42 Model Management. The project includes a public editorial website, a Supabase-backed talent directory, authenticated agency dashboard workflows, Google OAuth, and storage-backed public media.
+A complete management system for a model and talent agency: a public website, a staff dashboard and a talent portal. Designed and developed by **Rodzel Te**.
 
-## Routes
+This repository runs as a self-contained **demo**: every screen and workflow works, on fictional sample data, with no database or account to set up.
 
-- `/` — public home page (content from Dashboard → Website → Site settings)
-- `/models` — searchable roster (URL-driven filters, paging)
-- `/models/[...path]` — public board page (`/models/teens/boys`) or talent profile (`/models/<slug>`)
-- `/<page>` — published CMS pages (About, Privacy, …); unknown paths check Website → Redirects
-- `/join` — redirects to the GoHighLevel registration form
-- `/p/<token>` — private client package link (expiring, revocable)
-- `/login`, `/login/forgot`, `/login/reset`, `/login/mfa` — staff sign-in, password reset, two-step sign-in
-- `/dashboard` — agency workspace: talent, applications, bookings, calendar, tasks, companies, contacts, packages, finance, website, settings
-- `/portal` — talent self-service (magic-link sign-in at `/portal/login`)
-- `/preview/talent/[id]`, `/preview/page/[id]` — staff previews
-- `/api/integrations/ghl` — GoHighLevel webhook (shared secret)
+- Developer: Rodzel Te ([@rodzelte](https://github.com/rodzelte))
+- Contact: zythonix.te@gmail.com
 
-Public pages read only from approved Supabase views. Draft, private, legal, financial, and internal fields are never exposed.
+## What it does
+
+| Area | Features |
+|---|---|
+| Public website | Editorial home page, searchable roster with board pages (Women, Men, Teens and sub-boards), talent profiles with portfolios and digitals, CMS pages, redirects |
+| Talent | Profiles with 16 record tabs (measurements, contacts, addresses, rates, legal, banking, medical, documents, notes and more), boards, publication workflow, privacy rules for minors |
+| Media | Private uploads, publish to the website, portfolios, digital books, PDF comp cards |
+| Operations | Companies and contacts, bookings with double-booking warnings, calendar, tasks, fees, commission and invoices, CSV and calendar exports |
+| Sales | Client packages with expiring, revocable share links |
+| Applications | Review queue, notes, convert an applicant into a talent record |
+| Talent portal | Talent see their profile, bookings and documents, upload digitals, set availability and request changes for staff to approve |
+| Administration | Roles and a permission matrix, team access, audit log, memberships, CRM sync and data import screens |
+
+Permissions are enforced in the database (Postgres row-level security), then again in the API and the pages.
+
+## Try the demo
+
+```bash
+npm install
+```
+
+```bash
+npm run demo
+```
+
+Open http://localhost:3000/demo. It signs you in as the sample agency owner. No `.env` file is needed.
+
+| Link | Opens as |
+|---|---|
+| `/demo` | Owner: everything |
+| `/demo?as=booker` | Booker: bookings, calendar, clients, packages |
+| `/demo?as=talent_manager` | Talent manager: talent, applications, requests |
+| `/demo?as=accounting` | Accounting: finance |
+| `/demo?as=read_only` | Read only: can look, cannot change |
+| `/demo?as=talent` | A signed model's own portal |
+| `/` | The public website |
+
+The sign-in page lists every sample account. A "Demo mode" bar on each page has **Reset demo data**, which restores the original sample records; the demo also resets itself after an hour without activity.
+
+For presenting, use the faster production build:
+
+```bash
+npm run demo:build
+```
+
+```bash
+npm run demo:start
+```
+
+### How the demo is isolated
+
+Demo mode replaces the database, sign-in and file storage with an in-memory sandbox inside the web server (PGlite, a Postgres that runs in-process, loading the real schema from `supabase/migrations`). The sample data in `supabase/demo/seed.sql` is fictional. A demo server holds no credentials, refuses every outbound request, sends no email, and accepts no inbound integration calls. Details: [docs/demo-mode.md](docs/demo-mode.md).
+
+## Put the demo online (Railway)
+
+The repository includes `railway.json` and `Dockerfile.demo`.
+
+1. At railway.com choose **New Project → Deploy from GitHub repo** and pick this repository.
+2. Add no variables. Wait for the build and health check to finish.
+3. In the service's **Settings → Networking**, choose **Generate Domain**.
+4. Share `https://<your-name>.up.railway.app/demo`.
+
+The demo needs one long-running server with about 2 GB of memory. It does not run on serverless platforms such as Vercel functions, because its data lives in one process's memory.
 
 ## Stack
 
-- Next.js 16 App Router
-- React 19 and TypeScript
+- Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS 4
-- Supabase Auth, Postgres, Row Level Security, database views, and Storage
-- Zod validation for dashboard writes
+- Postgres with row-level security, database views and functions (Supabase in a live installation; PGlite in the demo)
+- Zod validation on every write
+- Node.js 20.9 or newer
 
-## Requirements
+## Running a live installation
 
-- Node.js 20 or newer
-- npm
-- A Supabase project
-
-## Local setup
+With a Supabase project of your own, the same code runs as a real system:
 
 ```bash
 npm install
@@ -40,117 +89,37 @@ copy .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
 Set these values in `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://dvpockrupiovuxcenuiy.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-or-anon-key>
-SUPABASE_SECRET_KEY=<server-only-secret-or-service-role-key>
+SUPABASE_SECRET_KEY=<server-only-secret-key>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-The publishable/anon key is intended for browser use and is protected by Supabase RLS. Keep `SUPABASE_SECRET_KEY` server-only. Never prefix it with `NEXT_PUBLIC_`, commit it, or paste it into a client component.
-
-## Supabase setup
-
-The production Supabase project is `dvpockrupiovuxcenuiy`. Use API keys from this project only; a key from another Supabase project causes an `Invalid API key` error.
-
-Link the project and apply the tracked migrations:
-
-```bash
-npx supabase@latest login
-npx supabase@latest link --project-ref dvpockrupiovuxcenuiy
-npx supabase@latest db push
-npx supabase@latest migration list
-```
-
-The migrations safely extend the existing agency schema with role helpers, talent fields and policies, public directory/profile views, storage buckets, and Auth profile bootstrapping. Add future schema changes as new files under `supabase/migrations`; do not edit production tables manually.
-
-## Google sign-in
-
-Enable **Authentication → Providers → Google** in Supabase and enter the Google OAuth Client ID and Client Secret.
-
-In Google Cloud, create a **Web application** OAuth client and add this exact authorized redirect URI:
-
-```text
-https://dvpockrupiovuxcenuiy.supabase.co/auth/v1/callback
-```
-
-In **Supabase → Authentication → URL Configuration**, set the Site URL to the real Vercel production domain and add these redirect URLs:
-
-```text
-http://localhost:3000/auth/callback
-https://<your-vercel-domain>/auth/callback
-```
-
-Google sign-in authenticates a user but does not grant agency access. The owner must explicitly allowlist each email under **Team access**. Access comes only from `public.agency_members`, which the database binds to the signed-in Auth user once that user's email is confirmed. Profiles and role rows are synced from it automatically. The last active owner cannot be demoted or removed.
-
-The production owner is `lennywheeler42@gmail.com` (`Lenny Wheeler`). If the owner membership ever needs to be restored, run this in the Supabase SQL Editor. It works whether or not the owner has signed in yet:
-
-```sql
-insert into public.agency_members (email, full_name, role, status)
-values (lower('lennywheeler42@gmail.com'), 'Lenny Wheeler', 'owner', 'active')
-on conflict ((lower(email))) do update set role = 'owner', status = 'active', updated_at = now();
-```
-
-Do not grant `owner` to every Google account. Assign staff least-privilege roles such as `administrator`, `staff`, `talent_manager`, `booker`, `creative`, `accounting`, or `read_only`. Keep email confirmation enabled in Supabase Auth.
-
-## Media and publishing flow
-
-1. Create talent from the authenticated dashboard.
-2. Add measurements and a board assignment in the talent editor.
-3. Upload media in the **Media** tab. Uploads are stored privately in `talent-private`.
-4. Click **Make public** on approved images. This copies them to the `talent-public` bucket; the private original is kept.
-5. Set the talent record to `published` and enable `show_on_website`.
-6. Confirm the record appears in `/models` and its public profile route.
-
-Records remain private until they are explicitly published. An empty roster is expected immediately after a fresh schema deployment.
-
-## Vercel deployment
-
-Connect the GitHub repository `lennywheeler42-bit/42-Model-Management` with the `main` branch. Configure these Vercel environment variables for Production and Preview:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://dvpockrupiovuxcenuiy.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<matching-publishable-key>
-SUPABASE_SECRET_KEY=<matching-server-only-secret>
-NEXT_PUBLIC_SITE_URL=https://<your-vercel-domain>
-```
-
-Use `Config` for variables beginning with `NEXT_PUBLIC_` and `Secret` for `SUPABASE_SECRET_KEY`. The build command is `npm run build`; leave the Next.js output directory and install command at their defaults. After changing Vercel environment variables, redeploy because they apply only to new deployments.
+Apply the schema with `npx supabase@latest link --project-ref <your-project-ref>` and `npx supabase@latest db push`. Keep `SUPABASE_SECRET_KEY` server-only: never prefix it with `NEXT_PUBLIC_` or commit it. Access to the dashboard comes only from the `agency_members` table, which the database binds to a signed-in user once their email is confirmed.
 
 ## Quality checks
 
 ```bash
 npm run lint
 npx tsc --noEmit
-npm test            # database/RLS (PGlite), unit and acceptance tests
+npm test            # database rules, unit tests and the demo sandbox (in-memory Postgres)
 npm run build
-npm run test:e2e    # Playwright, desktop and mobile
 ```
 
-After deployment, smoke-test `/`, `/models`, `/login`, `/dashboard`, Google sign-in, and one published talent profile.
-
-`npm run test:rls` replays every migration on an in-memory Postgres and checks RLS for each role; see [Security review](docs/security-review.md).
+With a demo running on port 3100 (`npm run demo:start -- --port 3100`), `npm run demo:check` drives every module end to end: pages, create/edit/delete, publishing, exports, roles, the portal and reset.
 
 ## Documentation
 
-- **[Project handoff](docs/HANDOFF.md)** — current status, what is done, and what to do next
-- **[Production roadmap](docs/ROADMAP.md)** — remaining phases and production-readiness criteria
-- **[Launch checklist](docs/launch-checklist.md)** — how to release v1.0.0 and every later release
-- [QA report](docs/qa-report.md)
-- [GoHighLevel integration](docs/ghl-integration.md)
-- [Operations runbook](docs/operations.md)
-- [Permissions](docs/permissions.md)
-- [Database notes](docs/database.md)
+- [Demo mode](docs/demo-mode.md)
 - [Architecture](docs/architecture.md)
-- [Security review](docs/security-review.md)
-- [Staging guidance](docs/staging.md)
-- [Demo mode](docs/demo-mode.md): `npm run demo` runs the whole system on fictional data in an in-memory sandbox, for client presentations
-- [Discovery notes](docs/discovery.md)
+- [Database notes](docs/database.md)
+- [Permissions](docs/permissions.md)
 
-## License
+## Author
 
-Private project for 42 Model Management.
+Rodzel Te · [github.com/rodzelte](https://github.com/rodzelte) · zythonix.te@gmail.com
+
+All rights reserved. This repository is shared for demonstration.
