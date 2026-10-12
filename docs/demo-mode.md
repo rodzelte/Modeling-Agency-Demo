@@ -73,25 +73,43 @@ One sandbox serves everyone who opens the demo, so two prospects using it at the
 
 1. **Present from your own computer.** Run `npm run demo:build` then `npm run demo:start` and share your screen.
 2. **Let a prospect click through it themselves, for a call.** Start it as above and expose the port with a tunnel (for example Cloudflare Tunnel or ngrok). Send them `https://<tunnel-address>/demo`. Images and links work on any address without configuration.
-3. **Keep a demo online (Railway).** The repository carries everything Railway needs: `railway.json` tells it to build `Dockerfile.demo`, run one instance, and health-check `/api/demo/status`.
-   1. Sign in at railway.com and choose **New Project → Deploy from GitHub repo**, then pick the repository (Railway asks for access to it the first time).
-   2. Add no variables. Wait for the build and the health check to turn green (a few minutes).
-   3. Open the service's **Settings → Networking → Generate Domain** and keep the port Railway suggests. If it suggests none, add the variable `PORT=3000`, redeploy, and enter 3000.
-   4. Send prospects `https://<your-name>.up.railway.app/demo`. A custom domain can be added in the same Networking panel.
-
-   The service needs about 1 GB of memory in use and up to 2 GB during a reset; check that your Railway plan allows it. Every push to the repository's main branch redeploys the demo (and so resets its data).
-
-   Any other host that runs one long-lived Node process works the same way from the Dockerfile, or without it: build with `npm ci && npm run demo:build`, start with `npm run demo:start -- --hostname 0.0.0.0` (it listens on `$PORT`), no environment variables.
-
-**Do not deploy the demo to Vercel serverless functions.** The sandbox lives in one process's memory; serverless splits the app across several short-lived processes, so each would have its own copy of the data. The production site on Vercel is unaffected by anything here: it never has `NEXT_PUBLIC_DEMO_MODE` set.
+3. **Keep a demo online.** Two ways, described under "Put it online" below: Vercel (free, best effort) or a container host such as Railway (steady).
 
 The demo sends `noindex` headers and a disallow-all `robots.txt`. It has no access code of its own; anyone with the address can open it (and can only ever see sample data).
+
+## Put it online
+
+### Vercel (best effort)
+
+1. At vercel.com choose **Add New → Project** and import the repository.
+2. Under **Environment Variables** add `NEXT_PUBLIC_DEMO_MODE` with the value `true`. Add nothing else.
+3. Deploy, then open `https://<project>.vercel.app/demo`. Use the production address, not a preview deployment's.
+
+How it works there: Vercel runs an app as several functions that share no memory. In demo mode exactly one of them (the route `/api/demo/supabase/*`) holds the sandbox, and all other server code reaches it over the site's own address (`src/demo/remote.ts`). What that means in practice:
+
+- **Changes last only while Vercel keeps that function alive.** After some minutes without visitors Vercel recycles it and the demo starts again from the original sample data. Signed-in sample accounts stay signed in.
+- **The first page after a quiet spell is slow** (several seconds) while the sandbox starts.
+- **Vercel may run two copies of the function under load**, each with its own data; a record can then seem to come and go. The app sends requests a few at a time to avoid this. `/api/demo/status` shows `sandbox.instance`: if it changes between refreshes, more than one copy is running.
+- Uploads larger than about 4 MB are refused by Vercel.
+- Times are shown in UTC.
+
+Good for letting a prospect look around. For a presentation where every change must stay put, use a container host or your own machine.
+
+### A container host (steady)
+
+One long-running server keeps the data until you reset it. The repository carries `railway.json` and `Dockerfile.demo`:
+
+1. At railway.com choose **New Project → Deploy from GitHub repo** and pick the repository.
+2. Add no variables. Wait for the build and the health check.
+3. Open the service's **Settings → Networking → Generate Domain** and keep the port Railway suggests. If it suggests none, add the variable `PORT=3000`, redeploy, and enter 3000.
+
+The server needs about 1 GB of memory in use and up to 2 GB during a reset. Any host that runs one Node process works the same way: build with `npm ci && npm run demo:build`, start with `npm run demo:start -- --hostname 0.0.0.0` (it listens on `$PORT`), no environment variables.
 
 ## Reset the data
 
 - **Reset demo data** in the demo bar (any page).
 - Automatically: a demo that was changed and then left untouched for 60 minutes is reset before the next visitor's first click, so each prospect starts clean. Set `DEMO_IDLE_RESET_MINUTES` to change the wait, or `0` to switch it off (do that for a long live presentation with pauses).
-- Restarting the server also starts from the original sample data.
+- Restarting the server also starts from the original sample data (on Vercel this happens by itself; see above).
 
 A reset takes about half a second and discards everything added, edited, deleted or uploaded since the server started. Sample accounts stay signed in. Dates in the sample data are relative to "now"; a reset more than 12 hours after start-up rebuilds them so upcoming bookings stay upcoming.
 
@@ -103,7 +121,7 @@ Nothing needs undoing. Demo mode exists only in processes started through `npm r
 npm run dev
 ```
 
-and `npm run build` / `npm run start` work exactly as before and use `.env.local` and the production project. The Vercel deployment is untouched.
+and `npm run build` / `npm run start` work exactly as before and use `.env.local` and the production project. A production Vercel project is untouched as long as `NEXT_PUBLIC_DEMO_MODE` is never set on it.
 
 ## What is real and what is simulated
 

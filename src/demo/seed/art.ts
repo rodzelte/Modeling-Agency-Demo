@@ -70,7 +70,7 @@ function backdrop(width: number, height: number, palette: Palette, next: () => n
 export type Art = { bytes: Uint8Array; width: number; height: number; contentType: "image/jpeg" };
 
 async function render(svg: string, width: number, height: number): Promise<Art> {
-  const bytes = await sharp(Buffer.from(svg)).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  const bytes = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
   return { bytes: new Uint8Array(bytes), width, height, contentType: "image/jpeg" };
 }
 

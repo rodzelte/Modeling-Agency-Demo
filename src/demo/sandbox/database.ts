@@ -26,8 +26,6 @@ type State = {
   snapshot: Blob | null;
   seedFiles: Map<string, StoredFile>;
   seeder: Seeder | null;
-  // Per-boot signing secret for sandbox sessions and signed file links.
-  secret: string;
   caches: Map<string, unknown>;
 };
 
@@ -58,8 +56,7 @@ async function build(state: State): Promise<Sandbox> {
 function current(seeder?: Seeder): State {
   let state = store[KEY];
   if (!state) {
-    const secret = process.env.DEMO_SANDBOX_SECRET || crypto.randomUUID() + crypto.randomUUID();
-    state = { ready: null as unknown as Promise<Sandbox>, snapshot: null, seedFiles: new Map(), seeder: seeder ?? null, secret, caches: new Map() };
+    state = { ready: null as unknown as Promise<Sandbox>, snapshot: null, seedFiles: new Map(), seeder: seeder ?? null, caches: new Map() };
     state.ready = build(state);
     // A failed boot must not poison every later request with the same rejection.
     state.ready.catch(() => { if (store[KEY] === state) store[KEY] = undefined; });
@@ -71,10 +68,6 @@ function current(seeder?: Seeder): State {
 // Boots the sandbox on first use. The seeder is only read on that first call.
 export function getSandbox(seeder?: Seeder): Promise<Sandbox> {
   return current(seeder).ready;
-}
-
-export function sandboxSecret() {
-  return current().secret;
 }
 
 // Small per-boot cache for catalog lookups (foreign keys, function signatures).
@@ -126,30 +119,4 @@ export async function runAsSystem<T>(work: (tx: Transaction) => Promise<T>): Pro
   return sandbox.db.transaction(work) as Promise<T>;
 }
 
-// SQL literal of unknown type, the way PostgREST passes filter values: Postgres
-// coerces it to the column's type. standard_conforming_strings is on, so only
-// the quote needs doubling.
-export function lit(value: unknown): string {
-  if (value === null || value === undefined) return "null";
-  const text = typeof value === "string" ? value : typeof value === "object" ? JSON.stringify(value) : String(value);
-  if (text.includes("\u0000")) throw new SandboxError("22021", "Invalid character in value", 400);
-  return `'${text.replace(/'/g, "''")}'`;
-}
-
-export function ident(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
-}
-
-export class SandboxError extends Error {
-  code: string;
-  status: number;
-  details: string | null;
-  hint: string | null;
-  constructor(code: string, message: string, status = 400, details: string | null = null, hint: string | null = null) {
-    super(message);
-    this.code = code;
-    this.status = status;
-    this.details = details;
-    this.hint = hint;
-  }
-}
+export { ident, lit, SandboxError } from "./sql.ts";

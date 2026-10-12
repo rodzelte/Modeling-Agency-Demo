@@ -3,10 +3,10 @@
 // own mirror tables (the sample CRM data), plus an occasional new sample lead so
 // "Run sync now" visibly does something. No request leaves this process, and
 // "write-back" updates are acknowledged without being sent anywhere.
-import { lit, runAsSystem } from "../sandbox/database.ts";
+import { lit } from "../sandbox/sql.ts";
+import { systemRows, type Row } from "../system.ts";
 
 type Query = Record<string, string | number | undefined>;
-type Row = Record<string, unknown>;
 
 class DemoGhlError extends Error {
   status: number;
@@ -16,9 +16,7 @@ class DemoGhlError extends Error {
   }
 }
 
-async function rows(sql: string): Promise<Row[]> {
-  return runAsSystem(async (tx) => JSON.parse((await tx.query<{ body: string }>(`select coalesce(json_agg(row_to_json(_r)), '[]')::text as body from (${sql}) _r`)).rows[0].body) as Row[]);
-}
+const rows = (sql: string): Promise<Row[]> => systemRows(sql);
 
 // Fictional leads that "arrive" in GHL over time, one per sync.
 const NEW_LEADS = [

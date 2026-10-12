@@ -2,7 +2,8 @@
 // generated per server boot (database.ts): these tokens mean nothing outside
 // this process and are unrelated to any Supabase project's keys.
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { sandboxSecret, type Caller } from "./database.ts";
+import type { Caller } from "./database.ts";
+import { sandboxSecret } from "./secret.ts";
 
 // Fixed, non-secret placeholders: the sandbox ignores the API key, exactly one
 // "project" exists, and the anon role has no session.

@@ -60,16 +60,13 @@ npm run demo:start
 
 Demo mode replaces the database, sign-in and file storage with an in-memory sandbox inside the web server (PGlite, a Postgres that runs in-process, loading the real schema from `supabase/migrations`). The sample data in `supabase/demo/seed.sql` is fictional. A demo server holds no credentials, refuses every outbound request, sends no email, and accepts no inbound integration calls. Details: [docs/demo-mode.md](docs/demo-mode.md).
 
-## Put the demo online (Railway)
+## Put the demo online
 
-The repository includes `railway.json` and `Dockerfile.demo`.
+**Vercel.** Import this repository as a new project, add the environment variable `NEXT_PUBLIC_DEMO_MODE` = `true` (nothing else), deploy, and share `https://<project>.vercel.app/demo`. On Vercel the data lives in one serverless function: it returns to the original sample data whenever Vercel recycles that function (after some minutes without visitors), and the first page after a quiet spell takes several seconds.
 
-1. At railway.com choose **New Project → Deploy from GitHub repo** and pick this repository.
-2. Add no variables. Wait for the build and health check to finish.
-3. In the service's **Settings → Networking**, choose **Generate Domain**.
-4. Share `https://<your-name>.up.railway.app/demo`.
+**A container host** (Railway, Render, Fly.io) keeps the data until you reset it. `railway.json` and `Dockerfile.demo` are included: deploy the repository, add no variables, generate a domain. It needs about 2 GB of memory.
 
-The demo needs one long-running server with about 2 GB of memory. It does not run on serverless platforms such as Vercel functions, because its data lives in one process's memory.
+Details and limits: [docs/demo-mode.md](docs/demo-mode.md).
 
 ## Stack
 

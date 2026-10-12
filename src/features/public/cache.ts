@@ -17,5 +17,6 @@ export function publicCache<Args extends unknown[], Result>(fn: (...args: Args) 
 // shows. It runs after the response is sent, so the write has completed and a
 // concurrent visitor cannot re-cache the old data.
 export function refreshPublicSite() {
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") return;
   after(() => revalidateTag(PUBLIC_SITE_TAG, { expire: 0 }));
 }

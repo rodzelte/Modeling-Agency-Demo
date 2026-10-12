@@ -71,7 +71,8 @@ test("the sandbox holds no real service address and never uses the admin client"
   for (const file of sources.filter((candidate) => candidate.path.startsWith("src/demo/"))) {
     assert.doesNotMatch(file.text, /supabase\.co\b|leadconnectorhq\.com|gohighlevel\.com|cdsglobal\.com|webforfashion\.com|amazonaws\.com/i, `${file.path} names a real service's address`);
     assert.doesNotMatch(file.text, /@\/lib\/supabase\/admin/, `${file.path} imports the admin client`);
-    assert.doesNotMatch(file.text, /https?:\/\/(?!sandbox\.demo\.invalid|www\.w3\.org)/, `${file.path} contains an outside address`);
+    // Allowed: the sandbox placeholder, the SVG namespace, this machine, and this site's own host (remote.ts).
+    assert.doesNotMatch(file.text, /https?:\/\/(?!sandbox\.demo\.invalid|www\.w3\.org|127\.0\.0\.1|\$\{host\})/, `${file.path} contains an outside address`);
   }
 });
 

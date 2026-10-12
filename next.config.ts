@@ -1,9 +1,15 @@
+import { randomUUID } from "node:crypto";
 import type { NextConfig } from "next";
 
 // Demo mode (npm run demo): the app runs on an in-memory sandbox and is built
 // into its own folder, so a demo build and a production build never mix. The
 // Supabase project address is ignored: files are served by this site itself.
 const demo = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+// Demo mode on a serverless host: the app's functions share no memory, so they
+// recognise each other's requests by a secret generated here, once per build,
+// and compiled into the server code (src/demo/remote.ts). It guards sample data only.
+if (demo && !process.env.DEMO_INTERNAL_SECRET) process.env.DEMO_INTERNAL_SECRET = randomUUID() + randomUUID();
 
 // Published talent and CMS images are served from Supabase public storage buckets.
 const supabaseUrl = !demo && process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : null;
@@ -49,10 +55,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  distDir: demo ? ".next-demo" : ".next",
+  // (Vercel builds in a fresh checkout and expects the default folder.)
+  distDir: demo && !process.env.VERCEL ? ".next-demo" : ".next",
   // Always defined, so the flag is a build-time constant in server and browser
   // code alike and production bundles drop every demo branch.
-  env: { NEXT_PUBLIC_DEMO_MODE: demo ? "true" : "false" },
+  env: { NEXT_PUBLIC_DEMO_MODE: demo ? "true" : "false", DEMO_INTERNAL_SECRET: demo ? process.env.DEMO_INTERNAL_SECRET ?? "" : "" },
+  // The sandbox reads the schema, the sample data and PGlite's own files from
+  // disk when it starts; a serverless function only carries files listed here.
+  ...(demo ? { outputFileTracingIncludes: { "/api/demo/**": ["./supabase/migrations/*.sql", "./supabase/demo/**/*", "./node_modules/@electric-sql/pglite/dist/**/*"] } } : {}),
   // Rendered in Node route handlers (PDF comp cards); not bundled. PGlite is the
   // demo sandbox's database and is only ever loaded in demo mode.
   serverExternalPackages: ["@react-pdf/renderer", "@electric-sql/pglite"],
