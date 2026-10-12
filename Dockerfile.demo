@@ -1,0 +1,20 @@
+# Demo mode only (docs/demo-mode.md): the app on its in-memory sandbox with
+# fictional data. Used by railway.json; the production site on Vercel never
+# builds this file. No environment variables or secrets are needed.
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Dependencies first, so they are cached between deploys.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+# Builds into .next-demo with the demo flag on and every real-service setting blanked.
+RUN npm run demo:build
+
+ENV NODE_ENV=production
+# The server listens on $PORT (Railway sets it; 3000 otherwise).
+EXPOSE 3000
+CMD ["node", "scripts/demo.mjs", "start", "--hostname", "0.0.0.0"]
