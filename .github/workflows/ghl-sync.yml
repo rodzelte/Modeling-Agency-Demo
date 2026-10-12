@@ -1,0 +1,28 @@
+# Hourly GHL reconciliation (the Vercel Hobby plan allows only a daily cron).
+# Calls the site's sync endpoint, which continues itself until the run finishes.
+# Needs the repository secret CRON_SECRET (same value as in Vercel) and,
+# optionally, the repository variable SITE_URL. See docs/ghl-integration.md.
+name: GHL sync
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Start reconciliation
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://42-model-management-kappa.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET is not set; skipping."; exit 0; fi
+          status=$(curl -sS -o response.json -w "%{http_code}" -X POST -H "Authorization: Bearer $CRON_SECRET" --max-time 70 "$SITE_URL/api/integrations/ghl/sync")
+          echo "HTTP $status"
+          head -c 600 response.json; echo
+          test "$status" -lt 400

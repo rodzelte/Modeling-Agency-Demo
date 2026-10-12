@@ -1,0 +1,20 @@
+# Used only by Dockerfile.demo (the demo deployment).
+node_modules
+.next
+.next-demo
+.git
+.github
+.claude
+.vercel
+# No environment file may ever enter a demo image.
+.env*
+!.env.example
+tests
+test-results
+playwright-report
+blob-report
+backups
+coverage
+supabase/.temp
+*.tsbuildinfo
+next-env.d.ts
